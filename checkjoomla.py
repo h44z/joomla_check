@@ -75,30 +75,36 @@ def download_joomla_version(version):
     
     dst_path = ""
     if version_match is not None:
-        if version_match.group(1) == 2:
+        if version_match.group(1) == "2":
             version_path = "joomla25"
         else:
             version_path = "joomla3"
         version_string = version_match.group(1) + "-" + version_match.group(2) + "-" + version_match.group(4)
 
         # check if file has already been downloaded...
-        dst_path = tmp_dl_dir + "/" + version + ".zip"
+        dst_path = tmp_dl_dir + "/orig_joomla_" + version + ".zip"
         dst_file = Path(dst_path)
         if not dst_file.is_file():
             url = "https://downloads.joomla.org/cms/" + version_path + "/" + version_string + "/joomla_" + version_string + "-stable-full_package-zip?format=zip"
-            urllib.request.urlretrieve (url, dst_path)
+            try:
+                urllib.request.urlretrieve (url, dst_path)
+            except:
+                dst_path = ""
 
     return dst_path
 
 def extract_downloaded_joomla_version(version, path):
-    dst_path = tmp_dl_dir + "/" + version
+    dst_path = tmp_dl_dir + "/orig_joomla_" + version
 
     # extract a fresh copy...
     shutil.rmtree(dst_path, onerror=remove_readonly)
 
-    with zipfile.ZipFile(path, "r") as zip_ref:
-        zip_ref.extractall(dst_path)
-    
+    try:
+        with zipfile.ZipFile(path, "r") as zip_ref:
+            zip_ref.extractall(dst_path)
+    except:
+        dst_path = ""
+
     return dst_path
 
 def remove_readonly(func, path, excinfo):
@@ -199,6 +205,7 @@ class bcolors:
 
 parser = argparse.ArgumentParser(description='Check joomla installation state.')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print verbose output')
+parser.add_argument('-n', '--nointegrity', action='store_true', help='Skip integrity check')
 
 args = parser.parse_args()
 
@@ -228,43 +235,45 @@ for file_path in Path(base_path).glob('**/version.php'):
             print(bcolors.OKGREEN, "[OK]     ", bcolors.ENDC, "Up to date Joomla version found!\t[", bcolors.OKGREEN + version + bcolors.ENDC, "] [", bcolors.WARNING + domain + bcolors.ENDC, "] \tin ", file_path)
             version_status = "OKOK"
 
-        print(bcolors.HEADER, " -> Checking file integrity: ", bcolors.ENDC, end=" ")
-        sys.stdout.flush()
-        dl_path = download_joomla_version(version)
+        if not args.nointegrity:
+            print(bcolors.HEADER, " -> Checking file integrity: ", bcolors.ENDC, end=" ")
+            sys.stdout.flush()
+            dl_path = download_joomla_version(version)
 
-        if not dl_path:
-            print(bcolors.FAIL, "Failed to download joomla source!", bcolors.ENDC)
-        else:
-            orig_root = extract_downloaded_joomla_version(version, dl_path)
-            cms_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(str(file_path))))) # strip "libraries/cms/version/version.php" from filename
-
-            if not orig_root:
-                print(bcolors.FAIL, "Failed to extract joomla source!", bcolors.ENDC)
+            if not dl_path:
+                print(bcolors.FAIL, "Failed to download joomla source!", bcolors.ENDC)
             else:
-                result_list = cmp_joomla_directories(orig_root, cms_root)
+                orig_root = extract_downloaded_joomla_version(version, dl_path)
+                cms_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(str(file_path))))) # strip "libraries/cms/version/version.php" from filename
 
-                if len(result_list) == 0:
-                    print(bcolors.OKGREEN, "OK", bcolors.ENDC)
-                    integrity_status = "OKOK"
+                if not orig_root:
+                    print(bcolors.FAIL, "Failed to extract joomla source!", bcolors.ENDC)
                 else:
-                    # check if only image files differ... if so ignore it.
-                    real_fail_count = 0
+                    result_list = cmp_joomla_directories(orig_root, cms_root)
 
-                    for fail_path in result_list:
-                        if fail_path.lower().endswith(".jpg") or fail_path.lower().endswith(".png"):
-                            pass
-                        else:
-                            real_fail_count = real_fail_count + 1
-
-                    if real_fail_count == 0:
-                        print(bcolors.WARNING, "OK", bcolors.ENDC, "Use -v to get details!")
-                        integrity_status = "WARN"
+                    if len(result_list) == 0:
+                        print(bcolors.OKGREEN, "OK", bcolors.ENDC)
+                        integrity_status = "OKOK"
                     else:
-                        print(bcolors.FAIL, "FAIL", bcolors.ENDC, "Use -v to get details!")
-                        integrity_status = "FAIL"
-                
-                if args.verbose:
-                    print('\tMissmatch: %s' % '\n\tMissmatch: '.join(map(str, result_list)))
+                        # check if only image files differ... if so ignore it.
+                        real_fail_count = 0
+
+                        for fail_path in result_list:
+                            if fail_path.lower().endswith(".jpg") or fail_path.lower().endswith(".png"):
+                                pass
+                            else:
+                                real_fail_count = real_fail_count + 1
+
+                        if real_fail_count == 0:
+                            print(bcolors.WARNING, "OK", bcolors.ENDC, "Use -v to get details!")
+                            integrity_status = "WARN"
+                        else:
+                            print(bcolors.FAIL, "FAIL", bcolors.ENDC, "Use -v to get details!")
+                            integrity_status = "FAIL"
+                    
+                    if args.verbose:
+                        if len(result_list) > 0:
+                            print('\tMissmatch: %s' % '\n\tMissmatch: '.join(map(str, result_list)))
         
         fobj.write(version_status + ";" + integrity_status + ";" + version + ";" + newest_version + ";" + domain + ";" + str(file_path) + "\n")
         print("") # empty last line

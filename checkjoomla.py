@@ -128,7 +128,8 @@ def extract_downloaded_joomla_version(joomla_version, zip_file_path):
     return dst_path
 
 
-def remove_readonly(func, path, excinfo):
+def remove_readonly(*arguments):
+    func, path, _ = arguments
     if os.path.isdir(path):
         os.chmod(path, stat.S_IWRITE)
         func(path)
@@ -138,29 +139,29 @@ def get_dir_md5(dir_root):
     exclude_dirs = {"installation", "tmp"}
 
     md5_hash = hashlib.md5()
-    for dirpath, dirnames, filenames in os.walk(dir_root, topdown=True):
+    for dir_path, dir_names, file_names in os.walk(dir_root, topdown=True):
 
-        dirnames.sort(key=os.path.normcase)
-        filenames.sort(key=os.path.normcase)
+        dir_names.sort(key=os.path.normcase)
+        file_names.sort(key=os.path.normcase)
 
-        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+        dir_names[:] = [d for d in dir_names if d not in exclude_dirs]
 
-        for filename in filenames:
-            filepath = os.path.join(dirpath, filename)
+        for filename in file_names:
+            core_file_path = os.path.join(dir_path, filename)
 
             # If some metadata is required, add it to the checksum
 
             # 1) filename (good idea)
-            # hash.update(os.path.normcase(os.path.relpath(filepath, dir_root))
+            # hash.update(os.path.normcase(os.path.relpath(core_file_path, dir_root))
 
             # 2) mtime (possibly a bad idea)
-            # st = os.stat(filepath)
+            # st = os.stat(core_file_path)
             # hash.update(struct.pack('d', st.st_mtime))
 
             # 3) size (good idea perhaps)
             # hash.update(bytes(st.st_size))
 
-            f = open(filepath, 'rb')
+            f = open(core_file_path, 'rb')
             for chunk in iter(lambda: f.read(65536), b''):
                 md5_hash.update(chunk)
 

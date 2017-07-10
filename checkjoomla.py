@@ -92,7 +92,7 @@ def download_joomla_version(joomla_version):
         dst_file = Path(dst_path)
         if not dst_file.is_file():
             if StrictVersion(joomla_version) > StrictVersion('3.7.1'):
-                version_string2 = ".".join(version_string.rsplit('-', 1))
+                version_string2 = ".".join(version_string.rsplit('-', 2))
 
                 url = "https://downloads.joomla.org/cms/" + \
                       version_path + "/" + version_string + \

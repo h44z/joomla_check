@@ -252,7 +252,7 @@ print(ConsoleColors.HEADER + "Newest Joomla Version: ", ConsoleColors.OKBLUE, ne
 fobj = open(csv_file_name, "w")
 fobj.write("Status;Integrity;Actual Version;Newest Version;Domain;Path\n")
 
-for file_path in Path(base_path).glob('**/version.php'):
+for file_path in Path(base_path).glob('**/[vV]ersion.php'):
     newest_version = get_newest_version()
     version = get_joomla_version(str(file_path))
     domain = "unknown"

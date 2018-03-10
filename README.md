@@ -1,6 +1,6 @@
 ### Joomla integrity and version check script
 
-This script is usefull to check joomla versions on a webserver. It does also check integrity of joomla core files!
+This script is useful to check joomla versions on a webserver. It does also check integrity of joomla core files!
 All outputs are written to a csv file for better automation.
 
 #### Usage
